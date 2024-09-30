@@ -1,6 +1,6 @@
 resource "newrelic_notification_destination" "mail" {
-  name       = var.dst.name_dst_mail
-  type       = "EMAIL"
+  name = var.dst.name_dst_mail
+  type = "EMAIL"
 
   property {
     key   = "email"
@@ -22,8 +22,8 @@ resource "newrelic_notification_channel" "mail" {
 
 # PagerDuty
 resource "newrelic_notification_destination" "pd" {
-  name       = var.pd_test.pd_name
-  type       = "PAGERDUTY_SERVICE_INTEGRATION"
+  name = var.pd_test.pd_name
+  type = "PAGERDUTY_SERVICE_INTEGRATION"
 
   property {
     key   = ""
