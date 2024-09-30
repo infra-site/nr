@@ -1,0 +1,98 @@
+name: "nr preview & deploy"
+
+on:
+  push:
+    branches:
+      - main
+#    paths:
+#      - /**
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  TF_VERSION: 1.1.7
+  TF_PROJECT: infra
+  TF_ENVIRONMENT: dev
+  NR_REGION: us
+
+defaults:
+  run:
+    shell: bash
+#    working-directory: "/"
+
+jobs:
+  preview:
+    name: Preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cehckout repository
+        uses: actions/checkout@v4
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Terraform format
+        id: fmt
+        run: |
+          terraform fmt -check
+      - name: Configure AWS Credential
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+      - name: Terraform init
+        id: init
+        run: |
+          terraform init -no-color
+      - name: Terraform validate
+        id: validate
+        run: |
+          terraform validate -no-color
+      - name: Terraform plan
+        id: plan
+        run: |
+          terraform plan \
+            -var 'NEW_RELIC_ACCOUNT_ID=${{ secrets.NR_ACCOUNT_ID }}' \
+            -var 'NEW_RELIC_API_KEY=${{ secrets.NR_API_KEY }}' \
+            -input=false \
+            -no-color \
+            -detailed-exitcode
+
+  deploy:
+    name: Deploy
+    needs: preview
+    environment: prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cehckout repository
+        uses: actions/checkout@v4
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Terraform format
+        run: |
+          terraform fmt -check
+      - name: Configure AWS Credential
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+      - name: Terraform init
+        run: |
+          terraform init -no-color
+      - name: Terraform apply
+        id: apply
+        run: |
+          terraform apply \
+            -var 'NEW_RELIC_ACCOUNT_ID=${{ secrets.NR_ACCOUNT_ID }}' \
+            -var 'NEW_RELIC_API_KEY=${{ secrets.NR_API_KEY }}' \
+            -input=false \
+            -no-color \
+            -auto-approve
+
